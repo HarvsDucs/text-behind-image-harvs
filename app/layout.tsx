@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
-import { Inter } from 'next/font/google'
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import SupabaseProvider from "@/providers/SupabaseProvider";
 import UserProvider from "@/providers/UserProvider";
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 
-const inter = Inter({ subsets: ['latin'] })
+import {
+  ClerkProvider,
+  SignInButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from "@clerk/nextjs";
+
+import AppPage from "./app/page";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Text Behind Image",
@@ -21,9 +31,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <SupabaseProvider>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          <SupabaseProvider>
             <UserProvider>
               <ThemeProvider
                 attribute="class"
@@ -32,15 +43,20 @@ export default function RootLayout({
                 disableTransitionOnChange
               >
                 <div>
-                  {children}
+                  <SignedOut>{children}</SignedOut>
+                  <SignedIn>
+                    <AppPage />
+                  </SignedIn>
+                  
                   <Analytics />
                   <SpeedInsights />
                   <Toaster />
                 </div>
               </ThemeProvider>
             </UserProvider>
-        </SupabaseProvider>
-      </body>
-    </html>
+          </SupabaseProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
