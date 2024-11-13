@@ -1,4 +1,3 @@
-// app/app/page.tsx
 'use client'
 
 import React, { useRef, useState, useEffect } from 'react';
@@ -14,11 +13,8 @@ import '@/app/fonts.css'
 import { ModeToggle } from '@/components/mode-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useUser } from "@clerk/nextjs";
-import {
-    UserButton,
-  } from "@clerk/nextjs";
-
-
+import { UserButton } from "@clerk/nextjs";
+import { uploadToSupabase } from '@/lib/supabase-client';
 
 const AppPage = () => {
     const { user } = useUser();
@@ -26,6 +22,8 @@ const AppPage = () => {
     const [isImageSetupDone, setIsImageSetupDone] = useState<boolean>(false);
     const [removedBgImageUrl, setRemovedBgImageUrl] = useState<string | null>(null);
     const [textSets, setTextSets] = useState<Array<any>>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -38,9 +36,16 @@ const AppPage = () => {
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            const imageUrl = URL.createObjectURL(file);
-            setSelectedImage(imageUrl);
-            await setupImage(imageUrl);
+            try {
+                setIsUploading(true);
+                const imageUrl = URL.createObjectURL(file);
+                setSelectedImage(imageUrl);
+                await setupImage(imageUrl);
+            } catch (error) {
+                console.error('Error processing image:', error);
+            } finally {
+                setIsUploading(false);
+            }
         }
     };
 
@@ -51,7 +56,7 @@ const AppPage = () => {
             setRemovedBgImageUrl(url);
             setIsImageSetupDone(true);
         } catch (error) {
-            console.error(error);
+            console.error('Failed to remove background:', error);
         }
     };
 
@@ -88,21 +93,28 @@ const AppPage = () => {
         setTextSets(prev => prev.filter(set => set.id !== id));
     };
 
-    const saveCompositeImage = () => {
-        if (!canvasRef.current || !isImageSetupDone) return;
+    const saveCompositeImage = async () => {
+        if (!canvasRef.current || !isImageSetupDone || !user) return;
     
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
     
-        const bgImg = new (window as any).Image();
-        bgImg.crossOrigin = "anonymous";
-        bgImg.onload = () => {
+        try {
+            setIsSaving(true);
+            const bgImg = new (window as any).Image();
+            bgImg.crossOrigin = "anonymous";
+            
+            await new Promise((resolve, reject) => {
+                bgImg.onload = resolve;
+                bgImg.onerror = reject;
+                bgImg.src = selectedImage || '';
+            });
+
             canvas.width = bgImg.width;
             canvas.height = bgImg.height;
-    
             ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-    
+
             textSets.forEach(textSet => {
                 ctx.save();
                 ctx.font = `${textSet.fontWeight} ${textSet.fontSize * 3}px ${textSet.fontFamily}`;
@@ -110,36 +122,47 @@ const AppPage = () => {
                 ctx.globalAlpha = textSet.opacity;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-    
+
                 const x = canvas.width * (textSet.left + 50) / 100;
                 const y = canvas.height * (50 - textSet.top) / 100;
-    
+
                 ctx.translate(x, y);
                 ctx.rotate((textSet.rotation * Math.PI) / 180);
                 ctx.fillText(textSet.text, 0, 0);
                 ctx.restore();
             });
-    
+
             if (removedBgImageUrl) {
                 const removedBgImg = new (window as any).Image();
                 removedBgImg.crossOrigin = "anonymous";
-                removedBgImg.onload = () => {
-                    ctx.drawImage(removedBgImg, 0, 0, canvas.width, canvas.height);
-                    triggerDownload();
-                };
-                removedBgImg.src = removedBgImageUrl;
-            } else {
-                triggerDownload();
+                
+                await new Promise((resolve, reject) => {
+                    removedBgImg.onload = resolve;
+                    removedBgImg.onerror = reject;
+                    removedBgImg.src = removedBgImageUrl;
+                });
+
+                ctx.drawImage(removedBgImg, 0, 0, canvas.width, canvas.height);
             }
-        };
-        bgImg.src = selectedImage || '';
-    
-        function triggerDownload() {
-            const dataUrl = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = 'text-behind-image.png';
-            link.href = dataUrl;
-            link.click();
+
+            const blob = await new Promise<Blob>((resolve) => {
+                canvas.toBlob((blob) => {
+                    resolve(blob!);
+                }, 'image/png');
+            });
+
+            const file = new File([blob], 'text-behind-image.png', { type: 'image/png' });
+            const publicUrl = await uploadToSupabase(file, user.id);
+
+            const downloadLink = document.createElement('a');
+            downloadLink.download = 'text-behind-image.png';
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.click();
+
+        } catch (error) {
+            console.error('Error saving image:', error);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -157,8 +180,15 @@ const AppPage = () => {
                         onChange={handleFileChange}
                         accept=".jpg, .jpeg, .png"
                     />
-                    <Button onClick={handleUploadImage}>
-                        Upload image
+                    <Button onClick={handleUploadImage} disabled={isUploading}>
+                        {isUploading ? (
+                            <>
+                                <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+                                Uploading...
+                            </>
+                        ) : (
+                            'Upload image'
+                        )}
                     </Button>
                     <ModeToggle />
                     <UserButton showName={true} />
@@ -169,8 +199,18 @@ const AppPage = () => {
                 <div className='flex flex-col md:flex-row items-start justify-start gap-10 w-full h-screen p-10'>
                     <div className="flex flex-col items-start justify-start w-full gap-4">
                         <canvas ref={canvasRef} style={{ display: 'none' }} />
-                        <Button onClick={saveCompositeImage}>
-                            Save image
+                        <Button 
+                            onClick={saveCompositeImage} 
+                            disabled={!isImageSetupDone || !user || isSaving}
+                        >
+                            {isSaving ? (
+                                <>
+                                    <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save image'
+                            )}
                         </Button>
                         <div className="min-h-[400px] w-[80%] p-4 border border-border rounded-lg relative overflow-hidden">
                             {isImageSetupDone ? (
@@ -182,7 +222,9 @@ const AppPage = () => {
                                     objectPosition="center" 
                                 />
                             ) : (
-                                <span className='flex items-center w-full gap-2'><ReloadIcon className='animate-spin' /> Loading, please wait</span>
+                                <span className='flex items-center w-full gap-2'>
+                                    <ReloadIcon className='animate-spin' /> Loading, please wait
+                                </span>
                             )}
                             {isImageSetupDone && textSets.map(textSet => (
                                 <div
@@ -216,7 +258,9 @@ const AppPage = () => {
                         </div>
                     </div>
                     <div className='flex flex-col w-full'>
-                        <Button variant={'secondary'} onClick={addNewTextSet}><PlusIcon className='mr-2'/> Add New Text Set</Button>
+                        <Button variant={'secondary'} onClick={addNewTextSet}>
+                            <PlusIcon className='mr-2'/> Add New Text Set
+                        </Button>
                         <ScrollArea className="h-[calc(100vh-10rem)] p-2">
                             <Accordion type="single" collapsible className="w-full mt-2">
                                 {textSets.map(textSet => (

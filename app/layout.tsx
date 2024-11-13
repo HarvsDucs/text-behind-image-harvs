@@ -8,6 +8,8 @@ import UserProvider from "@/providers/UserProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 
+import { ToastProvider } from "@/components/ui/toast";
+
 import {
   ClerkProvider,
   SignInButton,
@@ -34,27 +36,29 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={inter.className}>
-          <SupabaseProvider>
-            <UserProvider>
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="light"
-                enableSystem
-                disableTransitionOnChange
-              >
-                <div>
-                  <SignedOut>{children}</SignedOut>
-                  <SignedIn>
-                    <AppPage />
-                  </SignedIn>
-                  
-                  <Analytics />
-                  <SpeedInsights />
-                  <Toaster />
-                </div>
-              </ThemeProvider>
-            </UserProvider>
-          </SupabaseProvider>
+          <ToastProvider>
+            <SupabaseProvider>
+              <UserProvider>
+                <ThemeProvider
+                  attribute="class"
+                  defaultTheme="light"
+                  enableSystem
+                  disableTransitionOnChange
+                >
+                  <div>
+                    <SignedOut>{children}</SignedOut>
+                    <SignedIn>
+                      <AppPage />
+                    </SignedIn>
+
+                    <Analytics />
+                    <SpeedInsights />
+                    <Toaster />
+                  </div>
+                </ThemeProvider>
+              </UserProvider>
+            </SupabaseProvider>
+          </ToastProvider>
         </body>
       </html>
     </ClerkProvider>
