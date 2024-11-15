@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Avatar, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { removeBackground } from "@imgly/background-removal";
@@ -95,11 +94,18 @@ const AppPage = () => {
 
     const saveCompositeImage = async () => {
         if (!canvasRef.current || !isImageSetupDone || !user) return;
-    
+
+        // Get primary email address from user's email addresses
+        const primaryEmail = user.emailAddresses[0]?.emailAddress;
+        if (!primaryEmail) {
+            console.error('No email address found');
+            return;
+        }
+
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-    
+
         try {
             setIsSaving(true);
             const bgImg = new (window as any).Image();
@@ -152,7 +158,7 @@ const AppPage = () => {
             });
 
             const file = new File([blob], 'text-behind-image.png', { type: 'image/png' });
-            const publicUrl = await uploadToSupabase(file, user.id);
+            const publicUrl = await uploadToSupabase(file, primaryEmail);
 
             const downloadLink = document.createElement('a');
             downloadLink.download = 'text-behind-image.png';

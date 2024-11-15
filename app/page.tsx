@@ -10,11 +10,7 @@ import { AdditionalInfo } from "@/components/additional-info";
 import Link from "next/link";
 
 import {
-  ClerkProvider,
   SignInButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
 } from "@clerk/nextjs";
 
 const page = () => {
@@ -33,7 +29,6 @@ const page = () => {
       </HeroHighlight>
 
       <SignInButton>
-        <Link href={"/app"} className="mb-10">
           <HoverBorderGradient
             containerClassName="rounded-full"
             as="button"
@@ -41,7 +36,6 @@ const page = () => {
           >
             Open the app
           </HoverBorderGradient>
-        </Link>
       </SignInButton>
 
       <div className="flex space-x-4">

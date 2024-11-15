@@ -3,7 +3,6 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import SupabaseProvider from "@/providers/SupabaseProvider";
 import UserProvider from "@/providers/UserProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -12,14 +11,11 @@ import { ToastProvider } from "@/components/ui/toast";
 
 import {
   ClerkProvider,
-  SignInButton,
   SignedIn,
   SignedOut,
-  UserButton,
 } from "@clerk/nextjs";
 
-import AppPage from "./app/page";
-
+import AppPage from "@/components/actual_app/page";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -37,7 +33,6 @@ export default function RootLayout({
       <html lang="en">
         <body className={inter.className}>
           <ToastProvider>
-            <SupabaseProvider>
               <UserProvider>
                 <ThemeProvider
                   attribute="class"
@@ -57,7 +52,6 @@ export default function RootLayout({
                   </div>
                 </ThemeProvider>
               </UserProvider>
-            </SupabaseProvider>
           </ToastProvider>
         </body>
       </html>
