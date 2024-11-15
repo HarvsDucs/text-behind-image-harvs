@@ -83,12 +83,12 @@ const page = () => {
         <div className="text-2xl mt-10">
           Created by{" "}
           <Link
-            href={"https://www.rexanwong.xyz"}
+            href={"https://www.linkedin.com/in/harvey-ducay-090157253/"}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:font-bold"
           >
-            Rexan Wong
+            Harvey Ducay
           </Link>
         </div>
       </div>
